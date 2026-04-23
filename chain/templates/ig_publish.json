@@ -1,0 +1,5 @@
+{
+  "id": "ig_publish",
+  "description": "Instagram 发布流程",
+  "steps": ["选图", "写IG文案", "发Story", "发Post", "验证"]
+}

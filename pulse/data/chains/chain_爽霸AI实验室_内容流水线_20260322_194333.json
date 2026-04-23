@@ -1,0 +1,64 @@
+{
+  "chain_id": "爽霸AI实验室_内容流水线_20260322_194333",
+  "name": "爽霸AI实验室-内容流水线",
+  "template": null,
+  "steps": [
+    "选题规划",
+    "生图(AI)",
+    "文案撰写",
+    "人工审核",
+    "传图到发布机",
+    "发布小红书",
+    "验证发布",
+    "数据追踪"
+  ],
+  "current_step": 6,
+  "status": "in_progress",
+  "blocker": null,
+  "created_at": "2026-03-22T19:43:33.793987",
+  "updated_at": "2026-03-22T19:43:48.804983",
+  "history": [
+    {
+      "step": 0,
+      "step_name": "选题规划",
+      "action": "advance",
+      "note": "S1名画篇6张选题完成",
+      "at": "2026-03-22T19:43:48.601232"
+    },
+    {
+      "step": 1,
+      "step_name": "生图(AI)",
+      "action": "advance",
+      "note": "S1名画篇6张AI生图完成(gemini-3.1-flash-image-preview)",
+      "at": "2026-03-22T19:43:48.641412"
+    },
+    {
+      "step": 2,
+      "step_name": "文案撰写",
+      "action": "advance",
+      "note": "S1名画篇4篇文案完成(实验室格式)",
+      "at": "2026-03-22T19:43:48.683093"
+    },
+    {
+      "step": 3,
+      "step_name": "人工审核",
+      "action": "advance",
+      "note": "S1首发跳过审核直接发了(待改进)",
+      "at": "2026-03-22T19:43:48.724358"
+    },
+    {
+      "step": 4,
+      "step_name": "传图到发布机",
+      "action": "advance",
+      "note": "rsync传图到intel-mbp-remote完成",
+      "at": "2026-03-22T19:43:48.765390"
+    },
+    {
+      "step": 5,
+      "step_name": "发布小红书",
+      "action": "advance",
+      "note": "4篇发布成功(Olivia Rigoo 945688671)",
+      "at": "2026-03-22T19:43:48.804983"
+    }
+  ]
+}

@@ -1,0 +1,59 @@
+# module.yaml — Standardized Plugin Contract
+# Format: 1.0 | Auto-generated from SKILL.md analysis
+id: verify-gen
+version: "1.0.0"
+description: "AI生图质量验证 — 白底/分辨率/文件大小/宽高比/色彩方差，生产标准检查"
+
+dependencies:
+  services: []
+  tools: []
+  python:
+    - Pillow
+    - pathlib
+    - json
+    - statistics
+  binaries:
+    - name: python3
+      path: /opt/homebrew/bin/python3
+
+env: []
+
+canUseTool:
+  - Bash
+  - Read
+  - Glob
+  - Grep
+
+events: []
+
+outputs:
+  - type: report
+    description: "质量验证报告：每张图片的检查结果 + 通过/失败汇总"
+  - type: files
+    description: "可选：将失败图片移动到 rejected/ 子目录"
+
+quality_standards:
+  white_background:
+    description: "四角+边缘 RGB 均值 > 245"
+    threshold: 245
+  resolution:
+    description: "宽高均 >= 2048px"
+    min_dimension: 2048
+  file_size:
+    description: "100KB ~ 50MB"
+    min_bytes: 102400
+    max_bytes: 52428800
+  aspect_ratio:
+    description: "3:4 preferred (1080x1440), 1:1 acceptable"
+    preferred: "3:4"
+
+integrates_with:
+  - auto-gen-factory
+  - verify-pipeline
+
+tags:
+  - verification
+  - quality
+  - ai-image
+  - fashion
+  - production

@@ -1,0 +1,80 @@
+# module.yaml — Build 2 canonical contract
+id: build
+version: "2.3.0"
+description: "Build 2：Harness-first、Hermes-inspired、Memory Anchor aware 的稳定构建流水线"
+
+dependencies:
+  services: []
+  tools:
+    - name: memory-anchor
+      required: false
+      note: "优先加载。先 ToolSearch，再用 get_context / search_checkpoints / search_rules / add_rule / save_checkpoint / report_outcome。"
+  binaries:
+    - name: codex
+      note: "FULL / DESIGN 拓扑的架构阶段优先使用"
+    - name: python3
+      path: /opt/homebrew/bin/python3
+
+env: []
+
+canUseTool:
+  - ToolSearch
+  - AskUserQuestion
+  - TeamCreate
+  - TaskCreate
+  - Agent
+  - SendMessage
+  - Read
+  - Write
+  - Edit
+  - Bash
+  - Glob
+  - Grep
+  - get_context
+  - search_rules
+  - search_checkpoints
+  - add_rule
+  - save_checkpoint
+  - report_outcome
+
+outputs:
+  - type: report
+    description: "Execution Brief + optional Requirement Card/Architecture Packet + Dev/QA/Ship reports"
+  - type: memory
+    description: "BUILD-SUCCESS/BUILD-FAILURE + checkpoint updates + optional outcome feedback"
+  - type: evolution
+    description: "BUILD-RULE-CANDIDATE / BUILD-REVIEW / local build_evolution ledger"
+  - type: files
+    description: "实现代码、测试、必要的设计/说明文档"
+
+sub_agents:
+  - id: pm
+    description: "仅 FULL / DESIGN：澄清需求，输出 Requirement Card"
+    model: claude-opus-4-6
+  - id: architect
+    description: "仅 FULL / DESIGN：输出 Architecture Packet，可降级为 Lite 版"
+    model: codex
+  - id: dev
+    description: "所有实现拓扑：基于 Execution Brief 实现并给出证据"
+    model: claude-opus-4-6
+  - id: qa
+    description: "LIGHT / STANDARD / FULL：按拓扑深度验证"
+    model: claude-opus-4-6
+  - id: ship-master
+    description: "按拓扑收口，commit 前做最终检查，并闭环 Memory Anchor"
+    model: claude-opus-4-6
+
+topologies:
+  MICRO: { score: "0-2", phases: ["team-lead-brief", "dev", "ship"] }
+  LIGHT: { score: "3-5", phases: ["team-lead-brief", "dev", "qa", "ship"] }
+  STANDARD: { score: "6-7", phases: ["clarify", "team-lead-brief", "dev", "qa", "ship"] }
+  FULL: { score: "8-10", phases: ["pm", "architect", "team-lead-brief", "dev", "qa", "ship"] }
+  DESIGN: { score: "user-forced", phases: ["pm", "architect"] }
+
+tags:
+  - development
+  - build
+  - harness
+  - hermes
+  - memory-anchor
+  - autoresearch

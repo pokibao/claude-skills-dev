@@ -1,0 +1,54 @@
+# module.yaml — Standardized Plugin Contract
+# Format: 1.0 | Auto-generated from SKILL.md analysis
+id: pulse
+version: "1.0.0"
+description: "Ops Loop 每日脉搏仪表盘 — 聚合会话数据+commits+skills，输出结构化运营dashboard"
+
+dependencies:
+  services: []
+  tools:
+    - name: mcp__memory-anchor
+      required: true
+      note: "Load via ToolSearch('memory-anchor') before use"
+  python:
+    - json
+    - pathlib
+    - datetime
+  binaries:
+    - name: git
+    - name: python3
+      path: /opt/homebrew/bin/python3
+
+env: []
+
+canUseTool:
+  - Bash
+  - Read
+  - Glob
+  - Grep
+  - mcp__memory-anchor__get_context
+  - mcp__memory-anchor__search_checkpoints
+  - mcp__memory-anchor__search_rules
+
+events:
+  - hook: Stop
+    description: "Reads flush data written by stop-flush.py"
+    timing: post
+
+outputs:
+  - type: report
+    description: "Markdown dashboard: today's sessions, commits, skills used, errors, stalls"
+  - type: memory
+    description: "Weekly summary written to Memory Anchor"
+
+reads_from:
+  - ~/.claude/pending-memories/flush_*.json
+  - ~/.claude/audit-log/*.jsonl
+  - ~/.claude/projects/-Users-baobao/*.jsonl
+
+tags:
+  - ops
+  - dashboard
+  - monitoring
+  - sessions
+  - weekly-review

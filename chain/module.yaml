@@ -1,0 +1,53 @@
+# module.yaml — Standardized Plugin Contract
+# Format: 1.0 | Auto-generated from SKILL.md analysis
+id: chain
+version: "1.0.0"
+description: "多步骤工作流追踪 — 跨会话持久化链路，创建/推进/阻塞/恢复/完成"
+
+dependencies:
+  services: []
+  tools:
+    - name: mcp__memory-anchor
+      required: true
+      note: "Checkpoints stored in Memory Anchor"
+  python:
+    - json
+    - pathlib
+  binaries:
+    - name: python3
+      path: /opt/homebrew/bin/python3
+
+env: []
+
+canUseTool:
+  - Bash
+  - Read
+  - Write
+  - Glob
+  - mcp__memory-anchor__save_checkpoint
+  - mcp__memory-anchor__search_checkpoints
+  - mcp__memory-anchor__add_rule
+
+events:
+  - hook: SessionStart
+    description: "Resume active chains on session start"
+    timing: post
+  - hook: Stop
+    description: "Save in-progress chain state"
+    timing: pre
+
+outputs:
+  - type: memory
+    description: "Chain state persisted as Memory Anchor checkpoint"
+  - type: report
+    description: "Chain status summary: steps done/blocked/pending"
+
+storage:
+  checkpoint_tag: "chain"
+  data_dir: /Users/baobao/.claude/skills/chain/data
+
+tags:
+  - workflow
+  - cross-session
+  - tracking
+  - automation

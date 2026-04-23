@@ -1,0 +1,64 @@
+# module.yaml — Standardized Plugin Contract
+# Format: 1.0 | Auto-generated from SKILL.md analysis
+id: verify-pipeline
+version: "1.0.0"
+description: "批量流水线输出验证 — 文件计数/完整性/命名规范/采样质检/IO对比"
+
+dependencies:
+  services: []
+  tools: []
+  python:
+    - Pillow
+    - pathlib
+    - json
+    - statistics
+  binaries:
+    - name: python3
+      path: /opt/homebrew/bin/python3
+    - name: find
+    - name: wc
+
+env: []
+
+canUseTool:
+  - Bash
+  - Read
+  - Glob
+  - Grep
+
+events: []
+
+outputs:
+  - type: report
+    description: |
+      批量验证报告:
+        - 文件计数 vs 预期数
+        - 完整性检查（文件大小 > 0）
+        - 命名规范检查
+        - 采样质检（随机抽样 verify-gen）
+        - IO对比（输入数 vs 输出数）
+
+verification_checks:
+  - id: file_count
+    description: "实际文件数 vs 预期数（--expected 参数）"
+  - id: integrity
+    description: "所有文件 > 0 bytes，无损坏"
+  - id: naming
+    description: "文件名符合命名规范（按流水线类型）"
+  - id: sampling
+    description: "随机抽10%用 verify-gen 质检"
+  - id: io_ratio
+    description: "输入目录文件数 vs 输出目录文件数"
+
+integrates_with:
+  - auto-gen-factory
+  - craft-pipeline
+  - look-split
+  - verify-gen
+
+tags:
+  - verification
+  - quality
+  - pipeline
+  - batch
+  - production
