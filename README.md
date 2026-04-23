@@ -1,90 +1,112 @@
-# Claude Code Skills — Dev & System Execution
+# Claude Code Skills
 
-A collection of battle-tested Claude Code skills for software development workflows, AI quality control, and system operations.
+Battle-tested skills for [Claude Code](https://claude.ai/code). Built around three principles: gated pipelines, self-evolving memory, and AI quality control.
 
-These skills are designed for [Claude Code](https://claude.ai/code) — Anthropic's official CLI.
+## Structure
+
+```
+claude-code-skills/
+├── pipeline/          # Development pipelines
+├── quality-control/   # AI behavior control
+├── verification/      # Output verification
+├── system-ops/        # Session & workflow management
+└── intelligence/      # Decision & analysis tools
+```
 
 ## Installation
 
+Copy a skill to your skills directory:
+
 ```bash
-# Install a skill
-claude skill add <skill-name> --path ./skill-name
-
-# Or copy directly to your skills directory
-cp -r <skill-name> ~/.claude/skills/
+cp -r pipeline/build ~/.claude/skills/
 ```
 
-## Skills
+Then invoke it in Claude Code:
 
-### Core Build Pipeline
-
-| Skill | Description |
-|-------|-------------|
-| [`build`](./build/) | Build 2 — gated role-based delivery pipeline with Memory Anchor recall, Harness + Hermes integration |
-| [`build-frontend`](./build-frontend/) | Frontend parallel pipeline — PM + architect + dev + visual QA, shares API contract layer with `/build` |
-| [`fix-frontend`](./fix-frontend/) | Frontend bug fix loop — screenshot baseline → root cause → atomic fix → visual diff → regression check |
-| [`code-contract`](./code-contract/) | Architecture contracts — scan project, generate module contracts, detect integration issues before they happen |
-
-### AI Quality Control
-
-| Skill | Description |
-|-------|-------------|
-| [`pua`](./pua/) | Anti-AI-laziness detector — 7 mental models (read-discipline collapse, premature stop, fabricated verification, etc.) with self-activation |
-| [`ahvs`](./ahvs/) | Anti-Hallucination Verification System v2.1 — temporal causal reasoning + perspective shift |
-| [`semantic-master`](./semantic-master/) | Semantic understanding system — adaptive depth parsing, iterative refinement mode |
-| [`model-route`](./model-route/) | Model routing decision guide — Opus vs Sonnet vs Haiku by task type |
-
-### Verification Family
-
-| Skill | Description |
-|-------|-------------|
-| [`verify-site`](./verify-site/) | E2E site verification — port scan, health check, content validation, interactive element testing |
-| [`verify-pipeline`](./verify-pipeline/) | Batch pipeline output verification — completeness, quality, failure detection |
-| [`verify-gen`](./verify-gen/) | AI-generated image quality verification — white background, product shot standards |
-| [`verify-publish`](./verify-publish/) | Social media publish verification — post went live, content matches, no errors |
-
-### System Operations
-
-| Skill | Description |
-|-------|-------------|
-| [`chain`](./chain/) | Multi-step workflow tracker — create, advance, block, resume across sessions |
-| [`drift-check`](./drift-check/) | Drift detection — checks if current work is aligned with north star goal |
-| [`pulse`](./pulse/) | Daily ops dashboard — session aggregation, stall detection, weekly summary |
-| [`memory-audit`](./memory-audit/) | Memory audit and evolution — detect contradictions, prune stale knowledge |
-
-### Intelligence Tools
-
-| Skill | Description |
-|-------|-------------|
-| [`cold-eye`](./cold-eye/) | Brutally realistic viability judgment — market reality harness, no encouragement bias |
-| [`daily-digest`](./daily-digest/) | Information digestion engine — multi-platform article fetch + competitive analysis + self-evolution |
-
-## Design Philosophy
-
-These skills follow three principles:
-
-1. **Harness over hope** — every skill has gates, fallbacks, and explicit failure modes
-2. **Hermes self-evolution** — skills learn from usage and write back to evolution files
-3. **Memory Anchor integration** — decisions and outcomes flow into persistent memory
-
-## Skill Format
-
-Each skill is a markdown file with YAML frontmatter:
-
-```yaml
----
-name: skill-name
-description: When to use this skill
-triggers:
-  - /skill-name
-  - keyword trigger
----
+```
+/build
 ```
 
-## Requirements
+---
 
-- [Claude Code](https://claude.ai/code) CLI
-- [Memory Anchor](https://github.com/pokibao/memory-anchor) MCP (for full functionality)
+## pipeline — Development Pipelines
+
+### [`build`](./pipeline/build/)
+**Build 2** — Gated, role-based delivery pipeline. Harness (gates + evidence + degradation chain) × Hermes (single source of truth + skill orchestration) × Memory Anchor (recall + checkpoint resume). Three topologies: LIGHT / STANDARD / FULL.
+
+### [`build-frontend`](./pipeline/build-frontend/)
+**Frontend parallel pipeline** — Frontend PM + component architect + dev + visual QA, sharing an API contract layer with `/build`. Embeds `/fix-frontend` repair loop.
+
+### [`fix-frontend`](./pipeline/fix-frontend/)
+**Frontend bug fix loop** — Screenshot baseline → root cause diagnosis → atomic fix → visual diff → regression check → experience write-back. Solves "fix A breaks B."
+
+### [`code-contract`](./pipeline/code-contract/)
+**Architecture contract generator** — Scans the project, generates module contracts, detects integration issues before they happen. Answers: what does each module expect, what does it return, who calls it.
+
+---
+
+## quality-control — AI Behavior Control
+
+### [`pua`](./quality-control/pua/)
+**Anti-AI-laziness detector** — 7 mental models distilled from 8000+ words of Claude Code issue reports and arxiv papers. Detects: read-discipline collapse, ask-instead-of-think, simplest-path bias, skip-hard-parts, fabricated verification, premature stop, fluent nonsense. Self-activating.
+
+### [`ahvs`](./quality-control/ahvs/)
+**Anti-Hallucination Verification System v2.1** — Static fact check (v1) + temporal causal reasoning (v2) + perspective shift (v2.1). Answers: is it right, why, what would invalidate it, what to watch.
+
+### [`semantic-master`](./quality-control/semantic-master/)
+**Semantic understanding system** — Adaptive depth parsing on first call, reflective enhancement mode on re-call. For "do you understand?" moments before high-stakes actions.
+
+### [`model-route`](./quality-control/model-route/)
+**Model routing guide** — When to use Opus vs Sonnet vs Haiku. Decision tree by task type: exploration, implementation, production incident, analysis.
+
+---
+
+## verification — Output Verification
+
+### [`verify-site`](./verification/verify-site/)
+**E2E site verification** — Port scan, HTTP health check, content validation, interactive element testing. Runs before deploy or after a bug fix.
+
+### [`verify-pipeline`](./verification/verify-pipeline/)
+**Batch pipeline output verification** — Checks completeness, quality, and failure rate after a batch job finishes. Works with image generation, data processing, or any bulk operation.
+
+### [`verify-gen`](./verification/verify-gen/)
+**AI image quality verification** — White background compliance, product shot standards, batch pass/fail report.
+
+### [`verify-publish`](./verification/verify-publish/)
+**Social publish verification** — Confirms post went live on Xiaohongshu or Instagram, content matches, no platform errors.
+
+---
+
+## system-ops — Session & Workflow Management
+
+### [`chain`](./system-ops/chain/)
+**Multi-step workflow tracker** — Create, advance, block, resume, and complete chains across sessions. Persists state so long workflows survive context resets.
+
+### [`drift-check`](./system-ops/drift-check/)
+**Drift detector** — Checks whether current work is still aligned with the north-star goal. Run when deep in execution and unsure if the work still matters.
+
+### [`pulse`](./system-ops/pulse/)
+**Daily ops dashboard** — Aggregates session data, detects stalls, produces weekly summaries. Answers: what got done, what's stuck, where did time go.
+
+### [`memory-audit`](./system-ops/memory-audit/)
+**Memory audit and evolution** — Detects contradictions, prunes stale knowledge, surfaces forgotten context. Inspired by OpenAEON Dreaming Mode.
+
+---
+
+## intelligence — Decision & Analysis
+
+### [`cold-eye`](./intelligence/cold-eye/)
+**Brutally realistic viability judgment** — Applies a fixed market-reality harness instead of encouragement. For evaluating projects, plans, or ideas without bias. No cheerleading.
+
+### [`daily-digest`](./intelligence/daily-digest/)
+**Information digestion engine** — Fetches articles, extracts comments, cross-references against memory, performs competitive teardown, writes back learnings. Multi-platform.
+
+---
+
+## Dependencies
+
+- [Claude Code](https://claude.ai/code)
+- [Memory Anchor](https://github.com/pokibao/memory-anchor) — required for `build`, `chain`, `pulse`, `memory-audit` full functionality
 
 ## License
 
