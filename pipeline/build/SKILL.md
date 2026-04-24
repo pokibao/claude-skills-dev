@@ -1,7 +1,7 @@
 ---
 name: build
 description: "Use when the user explicitly asks to run /build, Build 2, or a gated role-based delivery pipeline with Memory Anchor recall instead of direct implementation."
-version: "4.0.0"
+version: "4.1.0"
 triggers:
   - "/build"
   - "Build 2"
@@ -266,60 +266,55 @@ Dev 阶段**每次 Write/Edit 后**，必须立刻验证：
 
 ## Step -1: Silent Memory Bootstrap
 
-**在任何评分前，先尝试加载 Memory Anchor。**
+**在任何评分前，先做三件事：MA 工具加载 → 读 evolution 台账 → 决定续跑/新开。** 这一步静默执行，但**三件事一件不准跳**。跳一件就是"丢三落四"。
 
-### 1a. Load Tools
+### 1a. Load MA + Pull Context
 
 ```text
 ToolSearch("memory-anchor")
-```
-
-如果 ToolSearch 失败：
-- 标注 `memory_mode = off`
-- 继续执行，但把评分置信度降一级
-
-### 1b. Pull Context
-
-```text
 get_context()
 search_checkpoints(query="{功能关键词或 task_slug}")
-search_rules(query="{功能关键词} BUILD-SUCCESS BUILD-FAILURE")
+search_rules(query="{功能关键词} BUILD-SUCCESS BUILD-FAILURE BR- BRC-")
 ```
 
-优先看四类信息：
+优先看：active checkpoint / 相似 BUILD-FAILURE / 相似 BUILD-SUCCESS / 项目最近关键事实。
 
-- 是否有 **active checkpoint**
-- 是否有相似的 `BUILD-FAILURE`
-- 是否有相似的 `BUILD-SUCCESS`
-- 当前项目最近的关键事实 / 活跃任务 / 失败记忆
+如果 ToolSearch 失败：标注 `memory_mode = off`，继续执行但评分置信度降一级。
 
-### 1c. Resume Logic
+### 1b. Read Evolution Ledger（强制，v4.1.0 硬补丁）
 
-如果命中相关 checkpoint：
+**每次 /build 都必须 Read** `<your-claude-project-memory>/build_evolution.md`（至少最后 80 行，含元数据 + 已晋升 BR + 候选 BRC + 最近 Review Window）。
 
-- `blocked / in_progress`：优先按“续跑”处理
-- `completed`：当作历史参考，不续跑
-- `stale`：先告诉用户“这个断点可能过期”，不要盲续
+**这不是可选。** 理由（BR-004 原理）：MA search_rules 靠 FTS5 关键词命中，召回率 < 80%；evolution 台账按时间组织，100% 看得到最近教训。二者并行。
 
-### 1d. Internal Understanding First
-
-先在内部形成一条 `memory_bootstrap_note`：
-
+Read 后在内部形成 `evolution_snapshot`：
 ```text
-任务理解：[具体到页面/模块/脚本/接口级别的描述]
-历史命中：[无 / active checkpoint / 相似成功 / 相似失败]
+active BR: [BR-XXX 主题 / BR-YYY 主题 ...]
+pending BRC: [BRC-XXX ...（距离晋升门槛差几次）]
+last_self_evolve: YYYY-MM-DD（距今 N 天）
+triggers_matched: [和本次任务相关的 BR/BRC 主题]
+```
+
+如果 `triggers_matched` 非空 → **必须在 Execution Brief 的 `memory_findings` 字段中点名**这些 BR/BRC，并说明本次如何遵守。
+
+### 1c. Resume & Route
+
+命中 checkpoint：`blocked / in_progress` → 续跑；`completed` → 参考不续跑；`stale` → 先问用户。
+
+形成 `memory_bootstrap_note`：
+```text
+任务理解：[具体到页面/模块/脚本/接口级别]
+历史命中：[无 / active checkpoint / 相似成功 / 相似失败 / BR-XXX 相关]
 建议路由：[新开 / continuation / 升一级 / 降一级]
 ```
 
-**默认不要把这整段都说给用户。**
+**默认静默不复述给用户。** 只在以下 4 种情况显式报告：
+1. 命中 active checkpoint（要用户确认续跑）
+2. 记忆改变了拓扑/风险判断
+3. `triggers_matched` 命中了 BR，本次必须遵守某条硬规则
+4. 你对用户意图仍不确定
 
-只有三种情况才显式复述并确认：
-
-- 命中 active checkpoint
-- 记忆会改变本次拓扑或风险判断
-- 你对用户真实意图仍不够确定
-
-如果请求足够清晰且记忆没有改变路由，直接进入评分，并把记忆结论写进 `Execution Brief`。
+否则直接进入评分，把结论写进 `Execution Brief`。
 
 ---
 
@@ -634,69 +629,115 @@ Ship 前如果有非本次引入的红色测试，必须显式处理（三选一
 
 ---
 
+## Step 8: Evolution Write-back（v4.1.0 硬补丁 · 强制执行）
+
+> **"丢三落四"的根源 = 前几版的 write-back 是"if extracted / when strong enough"。这版改成硬门控：每次 /build 收尾，这一步缺席 = 任务未完成。**
+
+### 8a. Append Ledger（必做，无条件）
+
+每次 /build 收尾（无论成功 / 失败 / 放弃）**必须** append 一条到 `<your-claude-project-memory>/build_evolution.md` 的"最近 /build 记录"段（文件末尾自动 append 即可）：
+
+```text
+## YYYY-MM-DD HH:MM · [HIT|MISS|PATTERN|REJECT] task_slug
+
+- trigger: 3-6 召回关键词,逗号分隔（未来 FTS5 能命中这条）
+- topology: MICRO / LIGHT / STANDARD / FULL / DESIGN
+- memory_hit: 命中了哪条 BR/BRC，或 "无"
+- what_worked: 一句话
+- what_missed: 一句话（若无，写 "无"）
+- pattern_candidate: 若本次发现新模式，一句话；否则 "无"
+- routing_hint: 知识层 / 编排层 / 门控层
+```
+
+**tag 判定**：
+- `HIT` — Phase -1 命中某条 BR/BRC 并在本次直接避免了重犯
+- `MISS` — 召回了相关记忆但不适用（日后 `report_outcome` 标 outdated）
+- `PATTERN` — 本次发现新规律，值得成候选
+- `REJECT` — 某条假设 / 修法被证伪，要负面记录
+
+### 8b. Recurrence Routing（N 次相同 PATTERN 决定修到哪层）
+
+**同一 trigger 的 PATTERN 在最近 30 条记录里出现：**
+
+| 次数 | 层 | 动作 |
+|---|---|---|
+| 1 | 知识层 | 写一条 `[BUILD-RULE-CANDIDATE]` BRC |
+| 2 | 编排层 | 晋升成 BR，Edit SKILL.md 对应 Step 的指令（不是加 Rule，是改现有 Phase 的执行路径） |
+| ≥ 3 | 门控层 | 加 hook / lint / PreToolUse 拦截，物理阻止重犯 |
+
+**判定**：统计 `<your-claude-project-memory>/build_evolution.md` 里同 trigger 的 PATTERN 条数。到 3 就**必须**改 hook。
+
+### 8c. Update Metadata
+
+Append 完成后，Edit 台账顶部元数据：
+
+```yaml
+last_self_evolve: YYYY-MM-DD   # 更新成今天
+```
+
+### 8d. Candidate / Promotion Decision
+
+**降阈值（v4.1.0）**：原来 "3 个任务支持 + 2 个会话覆盖" → 现在 "**2 个任务** 或 **1 个任务 + 1 次明确纠错**" 即可晋升 BR。
+
+- 写 `[BUILD-RULE-CANDIDATE]` → MA add_rule（带 trigger 字段）
+- 命中晋升门槛 → 写 `[BUILD-RULE]` + Edit `build_evolution.md` 的"已晋升规则"表格 + Edit SKILL.md 对应 Phase
+- 这步是 **MED 风险**，SKILL.md 改动前先输出 DIFF INTENT 给用户看（不需要 approve，只需透明）
+
+### 8e. Silent By Default, Verbose On PATTERN/REJECT
+
+默认用户看不到 8a-8d 的执行细节。以下 3 种情况必须显式报告：
+1. `PATTERN` 次数 ≥ 2（触发 BR 晋升或门控层）
+2. `REJECT` 推翻了一条旧 BR（触发 `report_outcome`）
+3. 晋升门槛命中但有风险（如要改 SKILL.md / 加 hook）
+
+---
+
 ## Memory Anchor Integration
 
 ### A. Start Of Task
 
-如果 Memory Anchor 可用，Build 2 开始时固定做：
-
-```text
-ToolSearch("memory-anchor")
-get_context()
-search_checkpoints()
-search_rules()
-```
-
-默认静默执行，除非结果改变拓扑、风险或续跑决策。
+具体动作已在 Step -1 硬编码（Load MA + Read Evolution Ledger + Resume），此处不重复。
 
 ### B. During Task
 
-用同一个 `task_id = build2-{feature-slug}` 做 UPSERT checkpoint：
+用同一个 `task_id = build2-{feature-slug}` 做 UPSERT checkpoint。状态流转：`in_progress → blocked → completed / abandoned`。
 
-- 开始执行：`task_status = in_progress`
-- 等用户确认 / 等外部依赖：`task_status = blocked`
-- 完成：`task_status = completed`
-- 放弃：`task_status = abandoned`
+推荐字段：`task_specification / files_and_functions / errors_and_corrections / decisions / blocked_reason / failed_assumption / next_unblocker / lessons_learned`。
 
-推荐补充字段：
+### C. End Of Task（v4.1.0 trigger 字段必填）
 
-- `task_specification`
-- `files_and_functions`
-- `workflow`
-- `errors_and_corrections`
-- `decisions`
-- `living_docs`
-- `trigger_patterns`
-- `blocked_reason`
-- `failed_assumption`
-- `next_unblocker`
-- `routing_feedback`
-- `lessons_learned`
-
-### C. End Of Task
-
-完成后必须写一条压缩过的长期记忆：
+完成后 MUST 写一条压缩过的长期记忆。**`trigger:` 字段不是可选** —— 没有 trigger 的记忆 = FTS5 召回不到 = 等于白写（对齐 CLAUDE.md 强骨架模板）。
 
 **成功**
 
 ```text
-[BUILD-SUCCESS] task_slug: {slug} | 任务: {功能描述} | 评分: {X}/10 | 拓扑: {拓扑} | 拓扑回顾: {合适/应该更重/应该更轻} | 跳过阶段: {PM/Architect/QA/无} | 跳过后果: {无问题/发现遗漏} | 耗时: {分钟} | 关键决策: {最重要的 1-3 条}
+[BUILD-SUCCESS] task_slug: {slug}
+- trigger: {3-6 召回关键词,逗号分隔，覆盖功能/技术栈/错法/工具名}
+- 任务: {功能描述}
+- 评分: {X}/10 | 拓扑: {选的}
+- 拓扑回顾: {合适/应该更重/应该更轻}
+- 跳过阶段: {PM/Architect/QA/无} | 跳过后果: {无问题/发现遗漏}
+- 耗时: {分钟}
+- 关键决策: {最重要的 1-3 条}
+- 可复用条件: {什么场景下可以照抄，什么场景不行}
 ```
 
 **失败**
 
 ```text
-[BUILD-FAILURE] task_slug: {slug} | 任务: {功能描述} | 评分: {X}/10 | 拓扑: {选的} | 应该用: {回看应该用的} | 失败阶段: {Clarify/PM/Architect/Dev/QA/Ship} | 现象: {什么失败了} | 根因: {为什么} | 门控建议: {下次该升/降/保持} | 路由: {知识层/编排层/门控层}
+[BUILD-FAILURE] task_slug: {slug}
+- trigger: {3-6 召回关键词}
+- 任务: {功能描述}
+- 评分: {X}/10 | 拓扑: {选的} | 应该用: {回看应该用的}
+- 失败阶段: {Clarify/PM/Architect/Dev/QA/Ship}
+- 现象: {失败信号长什么样}
+- 根因: {机制，不是"模型不行"}
+- 规避: {下次怎么绕 / 换哪条路径}
+- 门控建议: {下次该升/降/保持}
+- 路由: {知识层/编排层/门控层}
 ```
 
-推荐追加运行指标：
-
-- `memory_hit`
-- `clarify_count`
-- `phase_skipped`
-- `retry_count`
-- `user_interruptions`
-- `topology_hindsight`
+运行指标（可选）：`memory_hit / clarify_count / phase_skipped / retry_count / user_interruptions / topology_hindsight`。
 
 ### D. Outcome Feedback
 
@@ -708,93 +749,65 @@ report_outcome(memory_id=旧记忆ID, outcome="corrected"|"outdated", reason="..
 
 这样 Hermes 进化不是“越记越多”，而是“会修正自己的旧判断”。
 
-### E. Quiet Retrospective
+### E. Quiet Retrospective（v4.1.0 改强制）
 
-每次任务关闭后，默认再做一次 **60 秒静默复盘**。
-
-至少提炼这 5 件事：
-
-- `topology_fit`：这次拓扑选得对不对
-- `avoidable_rework`：有没有本来能提前避免的返工
-- `missing_artifact`：有没有缺失的 brief / test / QA 证据
-- `false_guardrail`：有没有过度门控或无效门槛
-- `reusable_pattern`：有没有能复用到后续任务的方法
-
-这一步默认不打扰用户，除非：
-
-- 需要立刻调整下一步计划
-- 发现了跨项目可复用的高价值规则
-
-### F. Rule Candidate Memory
-
-如果复盘提炼出了方法，不要立刻升成“永久规则”，先写成候选：
+**每次任务关闭 MUST 跑，不再是 "if relevant"。** 60 秒静默复盘，5 字段缺一不可（即使全是 "无"）：
 
 ```text
-[BUILD-RULE-CANDIDATE] topic: {routing|clarify|brief|dev|qa|ship|memory} | pattern: {观察到的模式} | recommendation: {建议动作} | confidence: {low|medium|high} | evidence_count: {N} | source_tasks: {task_slug1,task_slug2,...} | provenance: {memory_ids/brief notes}
+topology_fit: 这次拓扑选得对不对
+avoidable_rework: 有没有本来能提前避免的返工
+missing_artifact: 有没有缺失的 brief / test / QA 证据
+false_guardrail: 有没有过度门控或无效门槛
+reusable_pattern: 有没有能复用到后续任务的方法
 ```
 
-原则：
+输出目的地：写进 Step 8 的 evolution 记录里（不单独给用户看）。只在以下 2 种情况显式告诉用户：
+1. 需要立刻调整下一步计划
+2. 发现了跨项目可复用的高价值规则
 
-- 单次任务提炼出的候选，默认 `confidence=low`
-- 有明确失败复现或连续成功复现，才升到 `medium`
-- 不允许因为一次巧合就改全局规则
+### F. Rule Candidate Memory（v4.1.0 降阈值）
 
-### G. Review Windows And Promotion
-
-Build 2 的经验晋升，按 **AutoResearch 风格** 做，不按“谁声音大”做。
-
-触发静默 review window 的时机：
-
-- 任意一次 `BUILD-FAILURE`
-- 用户人工覆盖了拓扑
-- 连续 3 次同形成功（例如都说明 `LIGHT` 比 `STANDARD` 更合适）
-- 累计关闭 5 个 build 任务
-
-review window 至少回答：
-
-- 哪些做法重复成功
-- 哪些做法重复失败
-- 哪些 candidate 值得晋升
-- 哪些旧规则应该降级或纠正
-
-如果满足以下任一条件，可晋升为持久规则：
-
-- 同一候选被 **3 个以上任务** 支持
-- 或 **2 个任务 + 1 次明确纠错** 指向同一结论
-- 且最好覆盖 **2 个以上会话或项目**
-
-晋升动作：
-
-1. 写一条 `[BUILD-REVIEW]`
-2. 更新本地 ledger：`~/.claude/projects/memory/build_evolution.md`
-3. 如有必要，再写持久规则：
+复盘若提炼出方法，**先写候选，再考虑晋升**：
 
 ```text
-[BUILD-RULE] topic: {topic} | rule: {稳定后的规则表述} | evidence_count: {N} | promoted_from: {candidate_id or review_id}
+[BUILD-RULE-CANDIDATE] topic: {routing|clarify|brief|dev|qa|ship|memory}
+- trigger: {3-6 召回关键词}
+- pattern: {观察到的模式}
+- recommendation: {建议动作}
+- confidence: {low|medium|high}
+- evidence_count: {N}
+- source_tasks: {task_slug1,task_slug2,...}
 ```
 
-如果后续被新事实推翻：
+阈值（v4.1.0 降级）：
+- 单次任务提炼 → `confidence=low`
+- **同一 trigger 被 2 次任务支持** → `confidence=medium`（原来是 3 次）
+- **失败复现** 或 **明确纠错** → 直接 `confidence=high`（不用等次数）
 
-- `report_outcome(...)`
-- 在 `build_evolution.md` 把状态改成 `corrected / outdated`
+### G. Review Windows And Promotion（v4.1.0 改自动触发）
+
+**静默 review window 从"等 5 个积压"改成"每次 /build 自动微复盘"**（合并到 Step 8b 的 recurrence 统计）。
+
+完整 review window 触发：
+- 任意一次 `BUILD-FAILURE`（必触发）
+- 用户人工覆盖了拓扑（必触发）
+- Step 8b 检测到同 trigger PATTERN ≥ 2（必触发 BR 晋升判断）
+- 累计关闭 3 个 build 任务（自动触发，原来是 5 个）
+
+**晋升门槛（v4.1.0 降级）**：
+- 原来：3 个任务支持 + 覆盖 2 个会话
+- **现在：2 个任务支持，或 1 个任务 + 1 次明确纠错**（指向同一结论）
+
+晋升动作（MUST 按序执行）：
+1. 写 `[BUILD-REVIEW]` 到 MA（带 trigger 字段）
+2. Edit `build_evolution.md` 的"已晋升规则"表格增加一行
+3. Edit SKILL.md 对应 Phase 的指令（不是加 Rule，是改现有 Phase 的执行路径）
+4. 写 `[BUILD-RULE]`（带 trigger 字段）引用 BRC id
+5. 如果后续推翻：`report_outcome()` + evolution.md 状态标 `corrected / outdated`
 
 ### H. Silent Start / Silent End
 
-默认用户看到的是：
-
-- 评分与拓扑
-- 要做什么
-- 做完了什么
-- 风险与限制
-
-默认用户**看不到**的是：
-
-- 记忆 bootstrap 的内部细节
-- checkpoint 的中间写回
-- 候选规则的草稿
-- review window 的中间推理
-
-除非用户明确问“回忆一下 / 你学到了什么 / 给我看复盘”。
+见 Rule 6 Quiet By Default。用户默认看：评分+拓扑+做什么+做完了什么+风险。不看：memory bootstrap 细节/candidate 草稿/review 推理。例外：用户明确问"回忆一下/你学到了什么"。
 
 ### I. User-Facing Summary Contract
 
